@@ -1,5 +1,4 @@
-import {_tmp} from './inner-import';
+//tslint:disable:ordered-imports
 
-console.log(_tmp());
-
-export const foo = 1;
+import 'preact/debug';
+import './init-app';
