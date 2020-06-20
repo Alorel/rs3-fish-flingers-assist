@@ -1,4 +1,4 @@
-import {join, relative} from 'path';
+import {basename, join, relative} from 'path';
 import {cleanPlugin} from '@alorel/rollup-plugin-clean';
 import nodeResolve from '@rollup/plugin-node-resolve';
 import replacePlugin from '@rollup/plugin-replace';
@@ -8,6 +8,7 @@ import {modularCssExporterPlugin, modularCssProcessorPlugin} from '@alorel/rollu
 import {IifeIndexRendererRuntime as IndexRendererRuntime} from '@alorel/rollup-plugin-index-renderer-iife';
 import typescript from 'rollup-plugin-typescript2';
 import url from '@rollup/plugin-url';
+import {copyPlugin} from '@alorel/rollup-plugin-copy';
 
 const publicPath = '/';
 const srcDir = join(__dirname, 'src');
@@ -16,6 +17,7 @@ const isProd = process.env.NODE_ENV === 'production';
 
 const indexRenderer = new IndexRendererRuntime({
   base: publicPath,
+  entrypoint: 'main',
   input: join(srcDir, 'index.pug'),
   outputFileName: 'index.html',
   pugOptions: {
@@ -25,13 +27,15 @@ const indexRenderer = new IndexRendererRuntime({
 
 const regAllStyles = /\.s?css$/;
 const resolveExt = ['.mjs', '.js', '.ts', '.tsx', '.jsx', '.json'];
-const assetFileNames = `[name]${isProd ? '.[hash]' : ''}.[ext]`;
+const styleDir = join(srcDir, 'assets', 'styles');
 
 export default function () {
   return {
-    input: join(srcDir, 'index.ts'),
+    input: {
+      main: join(srcDir, isProd ? 'entry.prod.tsx' : 'entry.dev.ts')
+    },
     output: {
-      assetFileNames,
+      assetFileNames: `[name]${isProd ? '.[hash]' : ''}[extname]`,
       dir: distDir,
       format: 'iife',
       entryFileNames: `[name]${isProd ? '.[hash]' : ''}.js`,
@@ -43,7 +47,8 @@ export default function () {
         entries: [
           {find: /^preact\/(compat|hooks|debug|devtools)$/, replacement: 'preact/$1/dist/$1.module.js'},
           {find: 'lodash', replacement: 'lodash-es'},
-          {find: '~bootstrap', replacement: join(srcDir, 'assets', 'bootstrap.scss')}
+          {find: '~bootstrap', replacement: join(styleDir, 'bootstrap.scss')},
+          {find: /^~style:\\(.+)$/, replacement: join(styleDir, '$1')}
         ]
       }),
       nodeResolve({
@@ -55,7 +60,7 @@ export default function () {
         include: /\.png/,
         limit: 0,
         publicPath,
-        fileName: assetFileNames
+        fileName: `[dirname][name]${isProd ? '.[hash]' : ''}[extname]`
       }),
       sassPlugin({
         baseUrl: publicPath,
@@ -64,46 +69,54 @@ export default function () {
           sourceMap: false
         }
       }),
-      modularCssProcessorPlugin({
-        include: regAllStyles,
-        sourceMap: false,
-        ...(() => {
+      (() => {
+        const processorConfig = {
+          before: [
+            require('autoprefixer')(),
+          ]
+        };
+        const opts = {
+          include: regAllStyles,
+          sourceMap: false,
+          processorConfig
+        };
+        if (isProd) {
+          processorConfig.before.push(
+            require('cssnano')()
+          );
+
           let fileCounter = 0;
           const fileIds = {};
           const selectorIds = {};
-
-          return {
-            processorConfig: {
-              before: [
-                require('autoprefixer')(),
-                require('cssnano')()
-              ],
-              namer(absoluteFile, selector) {
-                const file = relative(__dirname, absoluteFile);
-                if (!(file in selectorIds)) {
-                  selectorIds[file] = {
-                    counter: 0,
-                    ids: {}
-                  };
-                  fileIds[file] = fileCounter.toString(36);
-                  fileCounter++;
-                }
-
-                const selectors = selectorIds[file];
-                if (!selectors.ids[selector]) {
-                  selectors.ids[selector] = selectors.counter.toString(36);
-                  selectors.counter++;
-                }
-
-                const fileId = `f${fileIds[file]}`;
-                const selectorId = `s${selectors.ids[selector]}`;
-
-                return fileId + selectorId;
-              }
+          processorConfig.namer = function (absoluteFile, selector) {
+            const file = relative(__dirname, absoluteFile);
+            if (!(file in selectorIds)) {
+              selectorIds[file] = {
+                counter: 0,
+                ids: {}
+              };
+              fileIds[file] = fileCounter.toString(36);
+              fileCounter++;
             }
+
+            const selectors = selectorIds[file];
+            if (!selectors.ids[selector]) {
+              selectors.ids[selector] = selectors.counter.toString(36);
+              selectors.counter++;
+            }
+
+            const fileId = `f${fileIds[file]}`;
+            const selectorId = `s${selectors.ids[selector]}`;
+
+            return fileId + selectorId;
           }
-        })()
-      }),
+        } else {
+          const reg = /[.\s]/g;
+          processorConfig.namer = (file, selector) => `${basename(file).replace(reg, '_')}--${selector}`;
+        }
+
+        return modularCssProcessorPlugin(opts);
+      })(),
       modularCssExporterPlugin({
         pureLoadStyle: false,
         styleImportName: 'loadStyle',
@@ -113,6 +126,17 @@ export default function () {
       typescript(),
       replacePlugin({
         'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development')
+      }),
+      copyPlugin({
+        defaultOpts: {
+          glob: {
+            cwd: join(srcDir, 'assets')
+          },
+          emitNameKind: 'fileName'
+        },
+        copy: [
+          'favicon.png'
+        ]
       }),
       indexRenderer.createPlugin(),
       indexRenderer.createOutputPlugin(),

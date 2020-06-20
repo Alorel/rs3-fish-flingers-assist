@@ -4,8 +4,8 @@ import {StateViewEmptyInfobox} from './StateViewEmptyInfobox';
 import {StateViewProps} from './StateViewProps';
 import {StateViewTbody} from './StateViewTbody';
 
-export function StateView({state}: StateViewProps): VNode {
-  if (!state.length) {
+export function StateView(props: StateViewProps): VNode {
+  if (!props.state.length) {
     return <StateViewEmptyInfobox/>;
   }
 
@@ -20,7 +20,7 @@ export function StateView({state}: StateViewProps): VNode {
         <th>Bait</th>
       </tr>
       </thead>
-      <StateViewTbody state={state}/>
+      <StateViewTbody {...props}/>
     </table>
   );
 }

@@ -1,18 +1,25 @@
-import Crayfish from '../../assets/bait/crayfish.png';
-import Crickets from '../../assets/bait/crickets.png';
-import GreenMoth from '../../assets/bait/green_moth.png';
-import GreyMoth from '../../assets/bait/grey_moth.png';
-import Locusts from '../../assets/bait/locusts.png';
-import Maggots from '../../assets/bait/maggots.png';
-import Shrimp from '../../assets/bait/shrimp.png';
-import Worms from '../../assets/bait/worms.png';
+import Crayfish from '../../assets/images/bait/crayfish.png';
+import Crickets from '../../assets/images/bait/crickets.png';
+import GreenMoth from '../../assets/images/bait/green_moth.png';
+import GreyMoth from '../../assets/images/bait/grey_moth.png';
+import Locusts from '../../assets/images/bait/locusts.png';
+import Maggots from '../../assets/images/bait/maggots.png';
+import Shrimp from '../../assets/images/bait/shrimp.png';
+import Worms from '../../assets/images/bait/worms.png';
 
-import Bone from '../../assets/hooks/bone.png';
-import Double from '../../assets/hooks/double.png';
-import Large from '../../assets/hooks/large.png';
-import Slim from '../../assets/hooks/slim.png';
-import Standard from '../../assets/hooks/standard.png';
-import Wooden from '../../assets/hooks/wooden.png';
+import Bass from '../../assets/images/fish/raw_bass.png';
+import Cod from '../../assets/images/fish/raw_cod.png';
+import Herring from '../../assets/images/fish/raw_herring.png';
+import Pike from '../../assets/images/fish/raw_pike.png';
+import Salmon from '../../assets/images/fish/raw_salmon.png';
+import Trout from '../../assets/images/fish/raw_trout.png';
+
+import Bone from '../../assets/images/hooks/bone.png';
+import Double from '../../assets/images/hooks/double.png';
+import Large from '../../assets/images/hooks/large.png';
+import Slim from '../../assets/images/hooks/slim.png';
+import Standard from '../../assets/images/hooks/standard.png';
+import Wooden from '../../assets/images/hooks/wooden.png';
 
 export {
   Crayfish,
@@ -28,5 +35,11 @@ export {
   Large,
   Slim,
   Standard,
-  Wooden
+  Wooden,
+  Herring,
+  Bass,
+  Cod,
+  Pike,
+  Salmon,
+  Trout
 };

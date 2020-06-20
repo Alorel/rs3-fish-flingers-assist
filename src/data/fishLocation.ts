@@ -5,4 +5,9 @@ export enum FishLocation {
   Beach = 'Beach'
 }
 
-export const LOCATION_LIST: FishLocation[] = Object.values(FishLocation);
+export const LOCATION_LIST: FishLocation[] = [
+  FishLocation.Docks,
+  FishLocation.Lake,
+  FishLocation.River,
+  FishLocation.Beach
+];

@@ -7,6 +7,6 @@
   },
   "files": [
     "declarations.d.ts",
-    "src/index.ts"
+    "src/entry.dev.ts"
   ]
 }

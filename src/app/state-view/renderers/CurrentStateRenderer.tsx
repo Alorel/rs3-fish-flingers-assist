@@ -5,5 +5,5 @@ import {StateView} from '../index';
 export function CurrentStateRenderer(): VNode {
   const [{completeLocations}] = useAppState();
 
-  return <StateView state={completeLocations}/>;
+  return <StateView state={completeLocations} rmAction={'rm:confirmedRow'}/>;
 }

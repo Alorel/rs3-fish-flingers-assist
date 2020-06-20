@@ -5,3 +5,7 @@ declare module '*.png' {
 
   export default url;
 }
+
+interface Obj<T> {
+  [k: string]: T;
+}
