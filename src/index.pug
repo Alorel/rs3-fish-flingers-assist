@@ -6,6 +6,7 @@ html(lang='en')
     each url in self.cssFiles
       link(rel='stylesheet', type='text/css', href=url)
     link(rel='shortcut icon', href=`${self.base}favicon.png`)
+    meta(name='description', content=__ROLLUP_BUILD_DESCRIPTION)
     meta(name='viewport', content='width=device-width,initial-scale=1.0,minimum-scale=1.0,user-scalable=yes')
   body
     div#root!= self.prerendered || ''
