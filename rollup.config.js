@@ -11,6 +11,7 @@ import url from '@rollup/plugin-url';
 import {copyPlugin} from '@alorel/rollup-plugin-copy';
 import {generateSW} from "rollup-plugin-workbox";
 import {description} from './package.json';
+import {manifestJsonPlugin} from '@alorel/rollup-plugin-manifest-json';
 
 const publicPath = process.env.CI ? '/rs3-fish-flingers-assist/' : '/';
 const srcDir = join(__dirname, 'src');
@@ -36,7 +37,7 @@ const regAllStyles = /\.s?css$/;
 const resolveExt = ['.mjs', '.js', '.ts', '.tsx', '.jsx', '.json'];
 const styleDir = join(srcDir, 'assets', 'styles');
 
-export default function () {
+export default function ({watch}) {
   return {
     input: {
       main: join(srcDir, isProd ? 'entry.prod.tsx' : 'entry.dev.ts')
@@ -146,6 +147,17 @@ export default function () {
           'favicon.png'
         ]
       }),
+      manifestJsonPlugin({
+        input: join(srcDir, 'manifest.json'),
+        baseDir: join(srcDir, 'assets'),
+        minify: isProd,
+        fileName: 'manifest.json',
+        replace: [
+          [/__DESCRIPTION__/, description],
+          [/__PUBLIC_PATH__/, publicPath]
+        ],
+        watch
+      }),
       indexRenderer.createPlugin(),
       indexRenderer.createOutputPlugin(),
       generateSW({
@@ -153,17 +165,54 @@ export default function () {
         mode: isProd ? 'production' : 'development',
         globDirectory: 'dist',
         globPatterns: ['**/*.{js,png,html}'],
+        manifestTransforms: [manifestEntries => {
+          const indexEntry = {
+            url: publicPath
+          };
+
+          return {
+            manifest: manifestEntries
+              .reduce(
+                (acc, entry) => {
+                  acc.push({
+                    ...entry,
+                    url: publicPath + entry.url
+                  });
+                  if (entry.url === 'index.html') {
+                    indexEntry.revision = entry.revision;
+                  }
+
+                  return acc;
+                },
+                [indexEntry]
+              )
+          }
+        }],
         cacheId: 'rs3-fish-flingers',
-        modifyURLPrefix: {
-          '': publicPath
-        },
         cleanupOutdatedCaches: true,
         sourcemap: false,
-        runtimeCaching: [{
-          handler: 'StaleWhileRevalidate',
-          method: 'GET',
-          urlPattern: /polyfill\.io\/v3\/polyfill\.min\.js/
-        }]
+        runtimeCaching: (() => {
+          const base = {
+            handler: 'StaleWhileRevalidate',
+            method: 'GET'
+          };
+
+          return [
+            {
+              ...base,
+              urlPattern: /polyfill\.io/
+            },
+            {
+              ...base,
+              urlPattern: publicPath
+            },
+            {
+              ...base,
+              handler: 'NetworkFirst',
+              urlPattern: publicPath + 'manifest.json'
+            }
+          ]
+        })()
       }),
       ...(() => {
         if (!isProd) {

@@ -28,7 +28,7 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: 14.x
-          registry-url: https://npm.pkg.github.com/alorel
+          registry-url: https://npm.pkg.github.com
       - name: Set up Yarn
         run: npm install -g yarn@^2.0.0-rc.27
       - name: Install dependencies
@@ -63,7 +63,7 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: 14.x
-          registry-url: https://npm.pkg.github.com/alorel
+          registry-url: https://npm.pkg.github.com
       - name: Set up Yarn
         run: npm install -g yarn@^2.0.0-rc.27
       - name: Install dependencies
@@ -99,7 +99,7 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: 14.x
-          registry-url: https://npm.pkg.github.com/alorel
+          registry-url: https://npm.pkg.github.com
       - name: Set up Yarn
         run: npm install -g yarn@^2.0.0-rc.27
       - name: Install dependencies
