@@ -43,6 +43,7 @@
     "preact": "^10.4.4",
     "rollup": "~2.15.0",
     "rollup-plugin-typescript2": "^0.27.1",
+    "rollup-plugin-workbox": "^5.0.1",
     "terser": "^4.8.0",
     "tslint": "^6.1.2",
     "typescript": "^3.9.5"
