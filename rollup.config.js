@@ -9,6 +9,7 @@ import {IifeIndexRendererRuntime as IndexRendererRuntime} from '@alorel/rollup-p
 import typescript from 'rollup-plugin-typescript2';
 import url from '@rollup/plugin-url';
 import {copyPlugin} from '@alorel/rollup-plugin-copy';
+import {generateSW} from "rollup-plugin-workbox";
 
 const publicPath = process.env.CI ? '/rs3-fish-flingers-assist/' : '/';
 const srcDir = join(__dirname, 'src');
@@ -125,7 +126,8 @@ export default function () {
       }),
       typescript(),
       replacePlugin({
-        'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development')
+        'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+        'process.env.PUBLIC_PATH': JSON.stringify(publicPath)
       }),
       copyPlugin({
         defaultOpts: {
@@ -140,6 +142,23 @@ export default function () {
       }),
       indexRenderer.createPlugin(),
       indexRenderer.createOutputPlugin(),
+      generateSW({
+        swDest: join(distDir, 'service-worker.js'),
+        mode: isProd ? 'production' : 'development',
+        globDirectory: 'dist',
+        globPatterns: ['**/*.{js,png,html}'],
+        cacheId: 'rs3-fish-flingers',
+        modifyURLPrefix: {
+          '': publicPath
+        },
+        cleanupOutdatedCaches: true,
+        sourcemap: false,
+        runtimeCaching: [{
+          handler: 'StaleWhileRevalidate',
+          method: 'GET',
+          urlPattern: /polyfill\.io\/v3\/polyfill\.min\.js/
+        }]
+      }),
       ...(() => {
         if (!isProd) {
           return [];
