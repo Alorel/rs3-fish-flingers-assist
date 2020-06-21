@@ -76,7 +76,7 @@ jobs:
 
   ProdBuild:
     runs-on: ubuntu-latest
-#    if: ${{ github.ref == 'refs/heads/master'}}
+    if: ${{ github.ref == 'refs/heads/master'}}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -115,34 +115,22 @@ jobs:
           path: dist
           name: dist
 
-  DistTest:
+  Deploy:
     runs-on: ubuntu-latest
-    needs: ProdBuild
+    if: ${{ github.ref == 'refs/heads/master'}}
+    needs:
+      - ProdBuild
+      - Lint
     steps:
       - name: Download dist
         uses: actions/download-artifact@v2
         with:
           name: dist
           path: dist
-      - run: ls -ltr
-      - run: ls dist -ltr
-
-#  Deploy:
-#    runs-on: ubuntu-latest
-#    if: ${{ github.ref == 'refs/heads/master'}}
-#    needs:
-#      - ProdBuild
-#      - Lint
-#    steps:
-#      - name: Download dist
-#        uses: actions/download-artifact@v2
-#        with:
-#          name: dist
-#          path: dist
-#      - name: Publish
-#        uses: JamesIves/github-pages-deploy-action@releases/v3
-#        with:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#          BRANCH: gh-pages
-#          FOLDER: dist
-#          CLEAN: true
+      - name: Publish
+        uses: JamesIves/github-pages-deploy-action@releases/v3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: gh-pages
+          FOLDER: dist
+          CLEAN: true
