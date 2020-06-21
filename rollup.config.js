@@ -10,11 +10,14 @@ import typescript from 'rollup-plugin-typescript2';
 import url from '@rollup/plugin-url';
 import {copyPlugin} from '@alorel/rollup-plugin-copy';
 import {generateSW} from "rollup-plugin-workbox";
+import {description} from './package.json';
 
 const publicPath = process.env.CI ? '/rs3-fish-flingers-assist/' : '/';
 const srcDir = join(__dirname, 'src');
 const distDir = join(__dirname, 'dist');
 const isProd = process.env.NODE_ENV === 'production';
+
+global.__ROLLUP_BUILD_DESCRIPTION = description;
 
 const indexRenderer = new IndexRendererRuntime({
   base: publicPath,
@@ -22,7 +25,10 @@ const indexRenderer = new IndexRendererRuntime({
   input: join(srcDir, 'index.pug'),
   outputFileName: 'index.html',
   pugOptions: {
-    self: true
+    self: true,
+    globals: [
+      '__ROLLUP_BUILD_DESCRIPTION'
+    ]
   }
 });
 
