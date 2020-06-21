@@ -150,6 +150,7 @@ export default function ({watch}) {
       manifestJsonPlugin({
         input: join(srcDir, 'manifest.json'),
         baseDir: join(srcDir, 'assets'),
+        basePath: publicPath,
         minify: isProd,
         fileName: 'manifest.json',
         replace: [
