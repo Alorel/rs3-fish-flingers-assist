@@ -10,8 +10,13 @@
     "emitDecoratorMetadata": false,
     "experimentalDecorators": true,
     "strictNullChecks": true,
+    "jsx": "react",
     "jsxFactory": "h",
     "newLine": "lf",
+    "lib": [
+      "dom",
+      "esnext"
+    ],
     "noImplicitAny": true,
     "noImplicitReturns": true,
     "noImplicitThis": true,

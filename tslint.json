@@ -1,5 +1,15 @@
 {
   "extends": "./node_modules/@alorel-personal/tslint-rules/tslint.json",
   "rules": {
+    "variable-name": false,
+    "import-blacklist": false,
+    "align": false,
+    "no-implicit-dependencies": [
+      true,
+      "dev",
+      [
+        "~bootstrap"
+      ]
+    ]
   }
 }

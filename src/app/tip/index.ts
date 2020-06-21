@@ -1,0 +1,1 @@
+export {TipDispatcher} from './TipDispatcher';

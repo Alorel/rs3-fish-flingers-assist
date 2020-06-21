@@ -1,232 +1,182 @@
-import {join} from 'path';
+import {basename, join, relative} from 'path';
 import {cleanPlugin} from '@alorel/rollup-plugin-clean';
-import {copyPkgJsonPlugin} from "@alorel/rollup-plugin-copy-pkg-json";
-import {copyPlugin} from "@alorel/rollup-plugin-copy";
 import nodeResolve from '@rollup/plugin-node-resolve';
-import {promises as fs} from 'fs';
-import {threadedTerserPlugin} from "@alorel/rollup-plugin-threaded-terser";
-import {dtsPlugin} from '@alorel/rollup-plugin-dts';
-import * as pkgJson from './package.json';
+import replacePlugin from '@rollup/plugin-replace';
+import alias from '@rollup/plugin-alias';
+import {sassPlugin} from "@alorel/rollup-plugin-scss";
+import {modularCssExporterPlugin, modularCssProcessorPlugin} from '@alorel/rollup-plugin-modular-css';
+import {IifeIndexRendererRuntime as IndexRendererRuntime} from '@alorel/rollup-plugin-index-renderer-iife';
 import typescript from 'rollup-plugin-typescript2';
+import url from '@rollup/plugin-url';
+import {copyPlugin} from '@alorel/rollup-plugin-copy';
 
-const umdName = 'MyLibrary';
-const umdGlobals = {};
-
-const distDir = join(__dirname, 'dist');
+const publicPath = process.env.CI ? '/rs3-fish-flingers-assist/' : '/';
 const srcDir = join(__dirname, 'src');
-const bundleDir = join(distDir, 'bundle');
+const distDir = join(__dirname, 'dist');
+const isProd = process.env.NODE_ENV === 'production';
 
-const clean$ = cleanPlugin({dir: distDir});
-const banner$ = fs.readFile(join(__dirname, 'LICENSE'), 'utf8')
-  .then(f => `/*\n${f.trim()}\n*/\n`);
-
-function mkNodeResolve() {
-  return nodeResolve({
-    mainFields: ['fesm5', 'esm5', 'module', 'browser', 'main'],
-    extensions: ['.js', '.ts']
-  });
-}
-
-const baseInput = join(srcDir, 'index.ts');
-
-const baseSettings = {
-  input: join(srcDir, 'index.ts'),
-  external: Array.from(
-    new Set(
-      Object.keys(Object.keys(pkgJson.dependencies || {}))
-        .concat(Object.keys(pkgJson.peerDependencies || {}))
-        .filter(p => !p.startsWith('@types/'))
-    )
-  ),
-  preserveModules: true,
-  watch: {
-    exclude: 'node_modules/*'
+const indexRenderer = new IndexRendererRuntime({
+  base: publicPath,
+  entrypoint: 'main',
+  input: join(srcDir, 'index.pug'),
+  outputFileName: 'index.html',
+  pugOptions: {
+    self: true
   }
-};
+});
 
-const baseOutput = {
-  entryFileNames: '[name].js',
-  assetFileNames: '[name][extname]',
-  sourcemap: false
-};
+const regAllStyles = /\.s?css$/;
+const resolveExt = ['.mjs', '.js', '.ts', '.tsx', '.jsx', '.json'];
+const styleDir = join(srcDir, 'assets', 'styles');
 
-function isTruthy(v) {
-  return !!v;
-}
-
-export default function ({watch}) {
-  const cjs = {
-    ...baseSettings,
-    input: baseInput,
+export default function () {
+  return {
+    input: {
+      main: join(srcDir, isProd ? 'entry.prod.tsx' : 'entry.dev.ts')
+    },
     output: {
-      ...baseOutput,
+      assetFileNames: `[name]${isProd ? '.[hash]' : ''}[extname]`,
       dir: distDir,
-      format: 'cjs',
-      plugins: watch ? [] : [
-        copyPkgJsonPlugin({
-          unsetPaths: ['devDependencies', 'scripts']
-        }),
-        dtsPlugin({
-          cliArgs: ['--rootDir', 'src']
-        }),
-      ]
+      format: 'iife',
+      entryFileNames: `[name]${isProd ? '.[hash]' : ''}.js`,
+      chunkFileNames: `[name]${isProd ? '.[hash]' : ''}.js`,
+      sourcemap: !isProd
     },
     plugins: [
-      clean$,
-      !watch && copyPlugin({
+      alias({
+        entries: [
+          {find: /^preact\/(compat|hooks|debug|devtools)$/, replacement: 'preact/$1/dist/$1.module.js'},
+          {find: 'lodash', replacement: 'lodash-es'},
+          {find: '~bootstrap', replacement: join(styleDir, 'bootstrap.scss')},
+          {find: /^~style:\\(.+)$/, replacement: join(styleDir, '$1')}
+        ]
+      }),
+      nodeResolve({
+        extensions: resolveExt,
+        mainFields: ['fesm5', 'esm5', 'module', 'main', 'browser']
+      }),
+      cleanPlugin(),
+      url({
+        include: /\.png/,
+        limit: 0,
+        publicPath,
+        fileName: `[dirname][name]${isProd ? '.[hash]' : ''}[extname]`
+      }),
+      sassPlugin({
+        baseUrl: publicPath,
+        include: /\.scss$/,
+        sassOpts: {
+          sourceMap: false
+        }
+      }),
+      (() => {
+        const processorConfig = {
+          before: [
+            require('autoprefixer')(),
+          ]
+        };
+        const opts = {
+          include: regAllStyles,
+          sourceMap: false,
+          processorConfig
+        };
+        if (isProd) {
+          processorConfig.before.push(
+            require('cssnano')()
+          );
+
+          let fileCounter = 0;
+          const fileIds = {};
+          const selectorIds = {};
+          processorConfig.namer = function (absoluteFile, selector) {
+            const file = relative(__dirname, absoluteFile);
+            if (!(file in selectorIds)) {
+              selectorIds[file] = {
+                counter: 0,
+                ids: {}
+              };
+              fileIds[file] = fileCounter.toString(36);
+              fileCounter++;
+            }
+
+            const selectors = selectorIds[file];
+            if (!selectors.ids[selector]) {
+              selectors.ids[selector] = selectors.counter.toString(36);
+              selectors.counter++;
+            }
+
+            const fileId = `f${fileIds[file]}`;
+            const selectorId = `s${selectors.ids[selector]}`;
+
+            return fileId + selectorId;
+          }
+        } else {
+          const reg = /[.\s]/g;
+          processorConfig.namer = (file, selector) => `${basename(file).replace(reg, '_')}--${selector}`;
+        }
+
+        return modularCssProcessorPlugin(opts);
+      })(),
+      modularCssExporterPlugin({
+        pureLoadStyle: false,
+        styleImportName: 'loadStyle',
+        include: regAllStyles,
+        sourceMap: false
+      }),
+      typescript(),
+      replacePlugin({
+        'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development')
+      }),
+      copyPlugin({
         defaultOpts: {
           glob: {
-            cwd: __dirname
+            cwd: join(srcDir, 'assets')
           },
           emitNameKind: 'fileName'
         },
         copy: [
-          'LICENSE',
-          'CHANGELOG.md',
-          'README.md'
+          'favicon.png'
         ]
       }),
-      mkNodeResolve(),
-      typescript()
-    ].filter(isTruthy)
-  };
-
-  if (watch) {
-    return cjs;
-  }
-
-  return [
-    cjs,
-    {
-      ...baseSettings,
-      input: baseInput,
-      output: {
-        ...baseOutput,
-        format: 'es',
-        dir: join(distDir, 'esm2015')
-      },
-      plugins: [
-        mkNodeResolve(),
-        typescript()
-      ]
-    },
-    {
-      ...baseSettings,
-      input: baseInput,
-      output: {
-        ...baseOutput,
-        format: 'es',
-        dir: join(distDir, 'esm5')
-      },
-      plugins: [
-        mkNodeResolve(),
-        typescript({
-          tsconfigOverride: {
-            compilerOptions: {
-              target: 'es5'
-            }
-          }
-        })
-      ]
-    },
-    {
-      ...baseSettings,
-      preserveModules: false,
-      output: [
-        {
-          ...baseOutput,
-          banner: () => banner$,
-          dir: bundleDir,
-          entryFileNames: 'fesm5.js',
-          format: 'es',
+      indexRenderer.createPlugin(),
+      indexRenderer.createOutputPlugin(),
+      ...(() => {
+        if (!isProd) {
+          return [];
         }
-      ],
-      plugins: [
-        mkNodeResolve(),
-        typescript({
-          tsconfigOverride: {
-            compilerOptions: {
-              target: 'es5'
-            }
-          }
-        })
-      ]
-    },
-    {
-      ...baseSettings,
-      preserveModules: false,
-      output: [
-        {
-          ...baseOutput,
-          banner: () => banner$,
-          dir: bundleDir,
-          entryFileNames: 'fesm2015.js',
-          format: 'es',
-        }
-      ],
-      plugins: [
-        mkNodeResolve(),
-        typescript()
-      ]
-    },
-    {
-      ...baseSettings,
-      preserveModules: false,
-      output: (() => {
-        const base = {
-          ...baseOutput,
-          banner: () => banner$,
-          name: umdName,
-          globals: umdGlobals,
-          dir: bundleDir,
-          format: 'umd'
-        };
+
+        const ecma = 5;
+        const ie8 = false;
+        const safari10 = true;
 
         return [
-          {
-            ...base,
-            entryFileNames: 'umd.js'
-          },
-          {
-            ...base,
-            entryFileNames: 'umd.min.js',
-            plugins: [
-              threadedTerserPlugin({
-                terserOpts: {
-                  compress: {
-                    drop_console: true,
-                    keep_infinity: true,
-                    typeofs: false,
-                    ecma: 5
-                  },
-                  ecma: 5,
-                  ie8: true,
-                  mangle: {
-                    safari10: true
-                  },
-                  output: {
-                    comments: false,
-                    ie8: true,
-                    safari10: true
-                  },
-                  safari10: true,
-                  sourceMap: false
-                }
-              })
-            ]
-          }
+          require('@alorel/rollup-plugin-iife-wrap').iifeWrapPlugin({
+            ssrAwareVars: []
+          }),
+          require('@alorel/rollup-plugin-threaded-terser').threadedTerserPlugin({
+            terserOpts: {
+              compress: {
+                drop_console: true,
+                keep_infinity: true,
+                typeofs: false,
+                ecma
+              },
+              ecma,
+              ie8,
+              mangle: {
+                safari10
+              },
+              output: {
+                comments: false,
+                ie8,
+                safari10
+              },
+              safari10,
+              sourceMap: false
+            }
+          })
         ]
       })(),
-      plugins: [
-        mkNodeResolve(),
-        typescript({
-          tsconfigOverride: {
-            compilerOptions: {
-              target: 'es5'
-            }
-          }
-        })
-      ]
-    }
-  ].filter(isTruthy);
+    ]
+  };
 };
