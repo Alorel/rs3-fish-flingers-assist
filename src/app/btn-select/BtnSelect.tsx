@@ -1,7 +1,7 @@
 import {identity} from 'lodash';
 import {ComponentChildren, h, VNode} from 'preact';
 import {memo} from 'preact/compat';
-import {useCallback} from 'preact/hooks';
+import {useCallback, useRef} from 'preact/hooks';
 import {dInlineFlex, flexWrap, justifyContentCenter} from '~bootstrap';
 import {withoutIndex} from '../../state/action-handlers/helpers/withoutIndex';
 import {BtnSelectButton} from './BtnSelectButton';
@@ -38,36 +38,48 @@ function BtnSelectInner<T>({options, value, onChange, multi, render}: IBtnSelect
       return value === option;
     }
   }, [value, multi]);
+  const ref = useRef<HTMLDivElement>();
+  const processOption = useCallback((option: any) => {
+    if (multi) {
+      const currIdx = (value as T[]).indexOf(option);
+      if (currIdx === -1) {
+        switch ((value as T[]).length) {
+          case 0:
+            onChange([option] as any);
+            break;
+          case 1:
+            onChange((value as T[]).concat(option) as any);
+            break;
+          default:
+            onChange([(value as T[])[1], option] as any);
+        }
+      } else {
+        onChange(withoutIndex(value as T[], currIdx) as any);
+      }
+    } else {
+      onChange((value === option ? null : option));
+    }
+  }, [multi, onChange, value]);
+  const onContainerClick = useCallback((e: Event): void => {
+    let target: HTMLElement = e.target as HTMLElement;
+    do {
+      const option: any = target.getAttribute('data-option');
+      if (option) {
+        processOption(JSON.parse(option));
+        break;
+      } else {
+        target = target.parentElement!;
+      }
+    } while (target && target !== ref.current);
+  }, [processOption, ref.current]);
 
   return (
-    <div class={`${justifyContentCenter} ${dInlineFlex} ${flexWrap}`}>{
-      options.map((option, idx): ComponentChildren => {
-        const toggleFn = () => {
-          if (multi) {
-            const currIdx = (value as T[]).indexOf(option);
-            if (currIdx === -1) {
-              switch ((value as T[]).length) {
-                case 0:
-                  onChange([option] as any);
-                  break;
-                case 1:
-                  onChange((value as T[]).concat(option) as any);
-                  break;
-                default:
-                  onChange([(value as T[])[1], option] as any);
-              }
-            } else {
-              onChange(withoutIndex(value as T[], currIdx) as any);
-            }
-          } else {
-            onChange((value === option ? null : option) as any);
-          }
-        };
-
-        return <BtnSelectButton toggle={toggleFn}
-                                key={`btn-select-opt-${option}-${idx}`}
-                                active={isActive(option)}>{render!(option)}</BtnSelectButton>;
-      })
+    <div ref={ref} onClick={onContainerClick} class={`${justifyContentCenter} ${dInlineFlex} ${flexWrap}`}>{
+      options.map(option => (
+        <BtnSelectButton option={option}
+                         key={option}
+                         active={isActive(option)}>{render!(option)}</BtnSelectButton>
+      ))
     }</div>
   );
 }
